@@ -1,6 +1,7 @@
 """Image processing module for halation effect."""
 import cv2
 import numpy as np
+import random
 
 def apply_halation_effect(image, alpha=0.3, blur_radius=15, color_scale=0.5,
                          canny_low=100, canny_high=200, dilation_size=3,
@@ -83,26 +84,58 @@ def apply_s_curve(image, strength=1.0):
     # Apply the LUT to each channel
     return cv2.LUT(image, lut)
 
-def add_monochrome_grain(image, grain_strength=0.02):
+def add_grain(image, grain_strength=0.02):
     """
-    Add monochrome film grain to the image.
+    Add realistic film grain to the image.
+
+    This is a Python adaptation of the Java addGrain function from DustyCV.
 
     Parameters:
     - image: Input image (BGR format)
     - grain_strength: Strength of the grain (0.0 to 0.1, 0.02 is subtle)
 
     Returns:
-    - Image with monochrome grain
+    - Image with film grain applied
     """
-    # Convert to YUV color space to work on luminance
-    yuv_image = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+    # Make a copy of the input image as float32 for processing
+    result = image.copy().astype(np.float32)
 
-    # Generate random noise for the luminance channel
-    noise = np.random.normal(0, 255 * grain_strength, yuv_image.shape[:2]).astype(np.float32)
+    height, width = image.shape[:2]
 
-    # Add noise to the Y channel (luminance)
-    yuv_image[:, :, 0] = yuv_image[:, :, 0].astype(np.float32) + noise
-    yuv_image[:, :, 0] = np.clip(yuv_image[:, :, 0], 0, 255).astype(np.uint8)
+    # Convert grain_strength to integer range (0-255)
+    grain_value = int(grain_strength * 255.0)
+    grain_value = max(1, min(80, grain_value))  # Constrain between 1 and 80
 
-    # Convert back to BGR
-    return cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR)
+    # Create random noise layer for each pixel
+    for y in range(height):
+        for x in range(width):
+            # Generate random grain value for this pixel (-grain_value to +grain_value)
+            rand = random.randint(-grain_value, grain_value)
+
+            # Add grain to each channel
+            for c in range(3):  # BGR channels
+                pixel_value = result[y, x, c]
+
+                # Logic from Java implementation: adjust noise based on pixel brightness
+                if pixel_value < 40:
+                    # Less grain in dark areas
+                    noise_adjusted = rand * pixel_value / 80.0
+                elif pixel_value > 190:
+                    # Less grain in very bright areas
+                    noise_adjusted = rand * (255 - pixel_value) / 80.0
+                else:
+                    # Full grain in mid-tones
+                    noise_adjusted = rand
+
+                # Apply grain to pixel
+                new_value = pixel_value + noise_adjusted
+                result[y, x, c] = max(0, min(255, new_value))
+
+    return result.astype(np.uint8)
+
+# Legacy function kept for compatibility
+def add_monochrome_grain(image, grain_strength=0.02):
+    """
+    Legacy function that redirects to the new add_grain implementation.
+    """
+    return add_grain(image, grain_strength)

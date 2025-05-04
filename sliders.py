@@ -9,10 +9,20 @@ def nothing(x):
     pass
 
 # Fetch the image from the URL
-url = 'https://images.unsplash.com/photo-1444464666168-49d633b86797?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8YmlyZHxlbnwwfHwwfHx8Mg%3D%3D'
+#url = 'https://images.unsplash.com/photo-1444464666168-49d633b86797?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8YmlyZHxlbnwwfHwwfHx8Mg%3D%3D'
+url = 'https://images.pexels.com/photos/39866/entrepreneur-startup-start-up-man-39866.jpeg?cs=srgb&dl=pexels-pixabay-39866.jpg&fm=jpg'
 response = requests.get(url)
 image = np.asarray(bytearray(response.content), dtype="uint8")
 image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+max_width = 800
+max_height = 800
+height, width = image.shape[:2]
+
+if width > max_width or height > max_height:
+    scaling_factor = min(max_width / width, max_height / height)
+    new_width = int(width * scaling_factor)
+    new_height = int(height * scaling_factor)
+    image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
 # Create a window for the GUI
 window_name = 'Film Effect with Halation'
@@ -58,13 +68,9 @@ while True:
         grain_strength=grain_strength
     )
 
-    # Display the result
     cv2.imshow(window_name, result)
 
     # Break the loop on 'q' key press
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord('q'):
+    if (cv2.waitKey(25) & 0xFF) == ord('q'):
+        cv2.destroyAllWindows()
         break
-
-# Clean up
-cv2.destroyAllWindows()
